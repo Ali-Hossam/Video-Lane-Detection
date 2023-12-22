@@ -201,3 +201,4 @@ class Hough:
         plt.imshow(line_image) # clipping may occur
         plt.tight_layout()
         plt.show()
+        return line_image
