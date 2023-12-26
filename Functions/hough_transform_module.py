@@ -1,3 +1,5 @@
+## Functions here can differ a little from the Notebook!
+
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage.color import gray2rgb
@@ -177,9 +179,10 @@ class Hough:
         
         mask[filtered_x, filtered_y] = [0, 254, 0]  # Set pixel color (green) on the line
         mask[:, :, 1] = dilation(mask[:, :, 1], square(5))
-        return np.maximum(img, mask)
-    
-    def plot_lanes_with_mask(self, img, r1, theta1, r2, theta2):
+        # return np.maximum(img, mask)
+        return mask
+        
+    def get_mask(self, img, r1, theta1, r2, theta2):
         """
         Applies the Hough transform process on the input image to detect road lines.
         It generates lines using Hough transform, draws them on the image, and plots the peaks 
@@ -193,12 +196,12 @@ class Hough:
         """
         line_image = np.zeros((img.shape[0], img.shape[1], 3))
         line_image = self.draw_line(gray2rgb(img), r1, theta1)
-        line_image = self.draw_line(line_image, r2, theta2)
+        line_image = np.maximum(line_image, self.draw_line(line_image, r2, theta2))
         # line_image = line_image / np.max(line_image) 
         
-        # Visualization
-        plt.figure(figsize=(12, 5))
-        plt.imshow(line_image) # clipping may occur
-        plt.tight_layout()
-        plt.show()
+        # # Visualization
+        # plt.figure(figsize=(12, 5))
+        # plt.imshow(line_image) # clipping may occur
+        # plt.tight_layout()
+        # plt.show()
         return line_image
