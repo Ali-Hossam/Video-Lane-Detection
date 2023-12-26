@@ -6,4 +6,8 @@
 3. ~~Integrate Hough~~ and sliding window algorithm
 4. Check real-time performance
 5. Test on different road videos
-6. UI
+6. **UI**
+
+## Problems
+1. Accuracy of Hough is low, also it is slow
+2. 
