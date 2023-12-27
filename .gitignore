@@ -3,3 +3,24 @@ Functions/__pycache__
 .vscode/settings.json
 UI/test.py
 UI/icon.ico
+Functions/CannyTrial v2.ipynb
+Functions/commonfunctions.py
+Functions/Histogram_Equalization.ipynb
+Functions/Hough transform.ipynb
+Functions/hough_transform_module.py
+Functions/Precpective_Transform.ipynb
+Functions/preprocessing_functions.py
+Functions/ROI_Smoothing.ipynb
+Functions/sliding_window.ipynb
+Functions/.ipynb_checkpoints/CannyTrial v2-checkpoint.ipynb
+Functions/.ipynb_checkpoints/commonfunctions-checkpoint.py
+Functions/.ipynb_checkpoints/Hough transform-checkpoint.ipynb
+Functions/.ipynb_checkpoints/Precpective_Transform-checkpoint.ipynb
+Functions/.ipynb_checkpoints/ROI_Smoothing-checkpoint.ipynb
+Functions/.ipynb_checkpoints/sliding_window-checkpoint.ipynb
+Notebooks/.ipynb_checkpoints/CannyTrial v2-checkpoint.ipynb
+Notebooks/.ipynb_checkpoints/commonfunctions-checkpoint.py
+Notebooks/.ipynb_checkpoints/Hough transform-checkpoint.ipynb
+Notebooks/.ipynb_checkpoints/Precpective_Transform-checkpoint.ipynb
+Notebooks/.ipynb_checkpoints/ROI_Smoothing-checkpoint.ipynb
+Notebooks/.ipynb_checkpoints/sliding_window-checkpoint.ipynb
