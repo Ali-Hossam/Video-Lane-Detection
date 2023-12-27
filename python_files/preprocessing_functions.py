@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from skimage.color import rgb2gray,rgb2hsv
 from skimage.filters import median, gaussian
 from skimage import morphology
+import cv2
 
 def histogram_equalization(img):
     # Load image using io.imread()
@@ -43,8 +44,9 @@ def plot_images(img1, img2, label1, label2):
     plt.tight_layout()
     plt.show()
 
-def ROI(img, x_start, x_end, y_start, y_end):
-    cropped_img = img[y_start : y_end, x_start : x_end]
+def ROI(img):
+    H, W, _ = img.shape
+    cropped_img = img[H//2 : H, :]
     return cropped_img
 
 def smooth(image):
@@ -53,10 +55,11 @@ def smooth(image):
     f_image = median(gray_image)
     return f_image
 
-def gray_to_binary(img, threshold):
+def gray_to_binary(img):
     """converts a gray scaled image to binary."""
-    binary_img = np.where(img > threshold, 1, 0)
-    return binary_img
+    gray_image_8bit = cv2.convertScaleAbs(img)
+    _, binary_image = cv2.threshold(gray_image_8bit, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return binary_image
 
 
 def apply_errosion(img, element_size):

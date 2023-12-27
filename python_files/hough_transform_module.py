@@ -150,7 +150,7 @@ class Hough:
         y = (r - x * cos_theta) / (sin_theta + 1e-9)
         return y.astype(int)
 
-    def draw_line(self, img: np.ndarray, r: int, theta: int) -> np.ndarray:
+    def draw_line(self, img: np.ndarray, r: int, theta: int, color: str) -> np.ndarray:
         """
         Draws a line on an image given polar coordinates.
 
@@ -177,12 +177,15 @@ class Hough:
         filtered_x = x[indices]
         filtered_y = y[indices]
         
-        mask[filtered_x, filtered_y] = [0, 254, 0]  # Set pixel color (green) on the line
+        if color == "green":
+            mask[filtered_x, filtered_y] = [0, 254, 0]  # Set pixel color (green) on the line
+        elif color == "red":
+            mask[filtered_x, filtered_y] = [0, 220, 0]  # Set pixel color (green) on the line
         mask[:, :, 1] = dilation(mask[:, :, 1], square(5))
         # return np.maximum(img, mask)
         return mask
         
-    def get_mask(self, img, r, theta):
+    def get_mask(self, img, r, theta, color):
         """
         Applies the Hough transform process on the input image to detect road lines.
         It generates lines using Hough transform.
@@ -194,7 +197,7 @@ class Hough:
             Polar coordinates of the lanes (r1, theta1, r2, theta2)
         """
         line_image = np.zeros((img.shape[0], img.shape[1], 3))
-        line_image = self.draw_line(gray2rgb(img), r, theta)
+        line_image = self.draw_line(gray2rgb(img), r, theta, color)
         # line_image = np.maximum(line_image, self.draw_line(line_image, r2, theta2))
         # line_image = line_image / np.max(line_image) 
         
