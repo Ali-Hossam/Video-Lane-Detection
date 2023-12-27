@@ -1,15 +1,16 @@
-import tkinter as tk
 import customtkinter as ctk
-from tkVideoPlayer import TkinterVideo
 from ctypes import windll, byref, sizeof, c_int
 import pywinstyles
-from PIL import Image
 import cv2
+from PIL import Image, ImageTk
+
 
 ctk.set_appearance_mode("dark")
 logo = Image.open("UI/logo.png")
 logo = logo.resize((310, 80))
-YELLOW = "#FFF000"
+icon_path = "UI\icon.ico"
+
+YELLOW = "#FFFF33" 
 GRAY1 = "#2b2b2b"
 GRAY2 = "#242424"
 button_height = 50
@@ -30,7 +31,7 @@ class App(ctk.CTk):
         # dimensions of the window
         
         self.geometry("1400x720")
-        
+        self.iconbitmap(icon_path)
         #===========================================================#
         # Title bar        
         #===========================================================#
@@ -71,7 +72,6 @@ class App(ctk.CTk):
         alg_label = ctk.CTkLabel(self, text="Algorithms", font=("consolas", header_size, "bold"), 
                              text_color="gray", bg_color=GRAY2)
         alg_label.pack(side="top", anchor="w", padx=20, ipady=20)
-
         
         self.hough_button_frame1 = ctk.CTkFrame(self, width=button_width, height=button_height, fg_color=YELLOW)
         self.hough_button_frame1.pack(side="top", anchor="nw", padx=0)
@@ -85,7 +85,8 @@ class App(ctk.CTk):
                              text_color="white")
         self.hough_button_lbl.pack(expand=True)
         self.hough_button_lbl.bind("<Button-1>", self.check_houghB_state)
-        
+        self.hough_button_frame2.bind("<Button-1>", self.check_houghB_state)
+
         # Sliding WIndow button
         self.slid_wind_frame1 = ctk.CTkFrame(self, width=button_width, height=button_height, fg_color=GRAY1)
         self.slid_wind_frame1.pack(side="top", anchor="nw", padx=0, pady=20)
@@ -94,11 +95,59 @@ class App(ctk.CTk):
         self.slid_wind_frame2 = ctk.CTkFrame(self.slid_wind_frame1, width=button_width-8, height=button_height, corner_radius=0)
         self.slid_wind_frame2.pack(side="top", anchor="nw", padx=0)
         self.slid_wind_frame2.pack_propagate(False)
-        
+
         self.slid_wind_lbl = ctk.CTkLabel(self.slid_wind_frame2, text="Sliding Window", font=("consolas", txt_size, "bold"), 
                              text_color="gray")
         self.slid_wind_lbl.pack(expand=True)
         self.slid_wind_lbl.bind("<Button-1>", self.check_slidingB_state)
+        self.slid_wind_frame2.bind("<Button-1>", self.check_slidingB_state)
+        
+        # upload, start, pause buttons
+        bot_button_x = 395
+        bot_button_width = button_width // 1.66
+        bot_button_space = 25
+        bot_button_y = 720 - button_height
+        
+        self.upload_frame1 = ctk.CTkFrame(self, width=bot_button_width, height=button_height, fg_color=GRAY1)
+        self.upload_frame1.place(x=bot_button_x, y=bot_button_y)
+        self.upload_frame1.pack_propagate(False)
+        
+        self.upload_frame2 = ctk.CTkFrame(self.upload_frame1, width=bot_button_width, height=button_height-8, corner_radius=0)
+        self.upload_frame2.pack(side="bottom", anchor="center", padx=0)
+        self.upload_frame2.pack_propagate(False)
+        
+        self.start_frame1 = ctk.CTkFrame(self, width=bot_button_width, height=button_height, fg_color=GRAY1)
+        self.start_frame1.place(x=bot_button_x + bot_button_width + bot_button_space, y=bot_button_y)
+        self.start_frame1.pack_propagate(False)
+        
+        self.start_frame2 = ctk.CTkFrame(self.start_frame1, width=bot_button_width, height=button_height-8, corner_radius=0)
+        self.start_frame2.pack(side="bottom", anchor="center", padx=0)
+        self.start_frame2.pack_propagate(False)
+
+        self.pause_frame1 = ctk.CTkFrame(self, width=bot_button_width, height=button_height, fg_color=GRAY1)
+        self.pause_frame1.place(x=bot_button_x + 2 * (bot_button_width + bot_button_space), y=bot_button_y)
+        self.pause_frame1.pack_propagate(False)
+        
+        self.pause_frame2 = ctk.CTkFrame(self.pause_frame1, width=bot_button_width, height=button_height-8, corner_radius=0)
+        self.pause_frame2.pack(side="bottom", anchor="center", padx=0)
+        self.pause_frame2.pack_propagate(False)
+
+        self.upload_label = None
+        self.start_label = None
+        self.pause_label = None
+    
+        self.add_label(self.upload_frame2, "Upload", variable="upload_label", is_bind=True, bind_function=self.upload_video)
+        self.add_label(self.start_frame2, "Start", variable="start_label", is_bind=True, bind_function=self.start_processing)
+        self.add_label(self.pause_frame2, "Pause", variable="pause_label", is_bind=True, bind_function=self.pause_processing)
+        
+        self.is_start = False
+        self.is_pause = False
+        self.is_upload = False
+        
+        self.upload_frame2.bind("<Button-1>", self.upload_video)
+        self.start_frame2.bind("<Button-1>", self.start_processing)
+        self.pause_frame2.bind("<Button-1>", self.pause_processing)
+
         #===========================================================#
         
         #===========================================================#
@@ -121,6 +170,7 @@ class App(ctk.CTk):
         self.add_two_slidersH(2)
         self.add_two_slidersH(3)
         self.add_two_slidersH(4)
+    
         #===========================================================#
         
         #===========================================================#
@@ -128,41 +178,81 @@ class App(ctk.CTk):
         #===========================================================#
         # frames
         main_vid_frame = ctk.CTkFrame(self, width=640, height=400, corner_radius=20)
-        main_vid_frame.place(x=380, y=165)
+        main_vid_frame.place(x=360, y=165)
+        self.video_label = ctk.CTkLabel(main_vid_frame, width=640, height=400, text="") # the label that will hold the video
+        self.video_label.pack(padx=20, pady=20)
 
-        # PT_vid_frame = ctk.CTkFrame(self, width=300, height=188, corner_radius=20)
-        # PT_vid_frame.place(x=1050, y=165)
+        PT_vid_frame = ctk.CTkFrame(self, width=300, height=210, corner_radius=20)
+        PT_vid_frame.place(x=1060, y=165)
 
-        # lane_vid_frame = ctk.CTkFrame(self, width = 300, height=188, corner_radius=20)
-        # lane_vid_frame.place(x=1050, y=375)
+        lane_vid_frame = ctk.CTkFrame(self, width = 300, height=210, corner_radius=20)
+        lane_vid_frame.place(x=1060, y=395)
+        
+        
         cap = cv2.VideoCapture("images\LaneVideo.mp4")
-        self.frame = main_vid_frame
         self.video = cap
-        self.vid_size = (640, 400)
+        
         # self.video_play()
-        
-    # def video_play(self):
-    #     self.frame
-    #     self.video
-    #     self.vid_size
-    #     self.video_label = ctk.CTkLabel(self.frame, text="")
-    #     self.video_label.pack(padx=20, pady=20)
-    #     ret, frame = self.video.read()
-    #     if not ret:
-    #         return
-    #     resized_frame = cv2.resize(self.frame, self.size)
-    #     resized_frame = Image.fromarray(cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB))
+        #===========================================================#
 
-    #     # Convert the frame to PhotoImage
-    #     img = ctk.CTkImage(dark_image=resized_frame,size=self.size)
-    #     self.video_label.configure(image=img)
-    #     self.video_label.image = img  # Keep a reference to avoid garbage collection issues
-    #     self.update()  #
-    #     self.after(1, self.video_play()) 
-
-    #     self.video.release()   
+    def video_play(self):
+        vid_size = (640, 400)
+        ret, frame = self.video.read()
+        if not ret:
+            return
         
-             
+        # Resize the frame and convert to PhotoImage
+        resized_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        img = Image.fromarray(resized_frame)
+        img = ctk.CTkImage(img, size=vid_size)
+        
+        self.video_label.configure(image=img)
+        self.video_label.image = img  # Keep a reference to avoid garbage collection issues
+        self.update()  #
+        self.after(1, self.video_play())
+        self.video.release()   
+        
+    def upload_video(self, e):
+        if self.is_upload == True:
+            self.upload_label.configure(text_color="gray")
+            self.upload_frame1.configure(fg_color=GRAY1)
+            self.is_upload = False
+        else:
+            self.upload_label.configure(text_color="white")
+            self.upload_frame1.configure(fg_color=YELLOW)
+            self.is_upload = True
+    
+    def start_processing(self, e):
+        if self.is_start == True:
+            self.start_label.configure(text_color="gray")
+            self.start_frame1.configure(fg_color=GRAY1)
+            self.is_start = False
+        else:
+            self.start_label.configure(text_color="white")
+            self.start_frame1.configure(fg_color=YELLOW)
+            self.is_start = True
+        
+        
+    def pause_processing(self, e):
+        if self.is_pause == True:
+            self.pause_label.configure(text_color="gray")
+            self.pause_frame1.configure(fg_color=GRAY1)
+            self.is_pause = False
+        else:
+            self.pause_label.configure(text_color="white")
+            self.pause_frame1.configure(fg_color=YELLOW)
+            self.is_pause = True
+    
+    def add_label(self, frame, text, variable, font_size=txt_size, is_bind=False, bind_function=None):
+        """Adds a label to a given frame."""
+        label = ctk.CTkLabel(frame, text=text, font=("consolas", font_size, "bold"), 
+                             text_color="gray")
+        label.pack(expand=True)
+        if is_bind:
+            label.bind("<Button-1>", bind_function)
+        setattr(self, variable, label)
+    
+    
     def add_two_slidersH(self, row):  # add a variable to take
         slider1_label = ctk.CTkLabel(self.prespT_param_frame, text=f"x{row}", font=("consolas", txt_size, "bold"), 
                             text_color="white", bg_color=GRAY1)
@@ -189,34 +279,29 @@ class App(ctk.CTk):
     def quit_app(self, e):
         """Quits the app!"""
         self.quit()
+        self.destroy()   
     
     def check_houghB_state(self, e):
         """Changes the state of hough transform button if pressed."""
         if self.is_slid:
-            self.check_slidingB_state(e)
+            self.slid_wind_frame1.configure(fg_color=GRAY1)
+            self.slid_wind_lbl.configure(text_color="gray")
+            self.is_slid = False
             
-        if self.is_hough:
-            self.hough_button_frame1.configure(fg_color=GRAY1)
-            self.hough_button_lbl.configure(text_color="gray")
-            self.is_hough = False
-        else:
-            self.hough_button_frame1.configure(fg_color=YELLOW)
-            self.hough_button_lbl.configure(text_color="white")
-            self.is_hough = True
+        self.hough_button_frame1.configure(fg_color=YELLOW)
+        self.hough_button_lbl.configure(text_color="white")
+        self.is_hough = True
             
     def check_slidingB_state(self, e):
         """changes the state of Sliding window button if pressed."""
         if self.is_hough:
-            self.check_houghB_state(e)
+            self.hough_button_frame1.configure(fg_color=GRAY1)
+            self.hough_button_lbl.configure(text_color="gray")
+            self.is_hough = False
             
-        if self.is_slid:
-            self.slid_wind_frame1.configure(fg_color=GRAY1)
-            self.slid_wind_lbl.configure(text_color="gray")
-            self.is_slid = False
-        else:
-            self.slid_wind_frame1.configure(fg_color=YELLOW)
-            self.slid_wind_lbl.configure(text_color="white")
-            self.is_slid = True
+        self.slid_wind_frame1.configure(fg_color=YELLOW)
+        self.slid_wind_lbl.configure(text_color="white")
+        self.is_slid = True
     
 
 def show_taskbar_icon(root):
@@ -236,8 +321,3 @@ if __name__ == "__main__":
     app.after(10, lambda: show_taskbar_icon(app))
     app.mainloop()
     
-# remove title bar
-# add two buttons at the left for Hough transform and sliding window
-# add another title list for parameters beneath them
-# add video section
-# add player section and start, pause
