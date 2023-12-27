@@ -182,11 +182,10 @@ class Hough:
         # return np.maximum(img, mask)
         return mask
         
-    def get_mask(self, img, r1, theta1, r2, theta2):
+    def get_mask(self, img, r, theta):
         """
         Applies the Hough transform process on the input image to detect road lines.
-        It generates lines using Hough transform, draws them on the image, and plots the peaks 
-        of the Hough array before and after removing the first peak.
+        It generates lines using Hough transform.
 
         Parameters:
         - img (np.ndarray): Input image.
@@ -195,8 +194,8 @@ class Hough:
             Polar coordinates of the lanes (r1, theta1, r2, theta2)
         """
         line_image = np.zeros((img.shape[0], img.shape[1], 3))
-        line_image = self.draw_line(gray2rgb(img), r1, theta1)
-        line_image = np.maximum(line_image, self.draw_line(line_image, r2, theta2))
+        line_image = self.draw_line(gray2rgb(img), r, theta)
+        # line_image = np.maximum(line_image, self.draw_line(line_image, r2, theta2))
         # line_image = line_image / np.max(line_image) 
         
         # # Visualization
