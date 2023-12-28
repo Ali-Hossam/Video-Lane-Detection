@@ -1,6 +1,5 @@
 import customtkinter as ctk
 from ctypes import windll, byref, sizeof, c_int
-import pywinstyles
 import cv2
 from PIL import Image, ImageTk
 import sys
@@ -13,7 +12,7 @@ from python_files.preprocessing_functions import ROI
 ctk.set_appearance_mode("dark")
 logo = Image.open("UI/logo.png")
 logo = logo.resize((310, 80))
-icon_path = "UI\icon.ico"
+# icon_path = "UI\icon.ico"
 
 YELLOW = "#FFFF33" 
 GRAY1 = "#2b2b2b"
@@ -36,7 +35,7 @@ class App(ctk.CTk):
         # dimensions of the window
         
         self.geometry("1400x720")
-        self.iconbitmap(icon_path)
+        # self.iconbitmap(icon_path)
         #===========================================================#
         # Title bar        
         #===========================================================#
@@ -222,7 +221,7 @@ class App(ctk.CTk):
         # self.video_play()
         #===========================================================#
 
-    
+
     def add_image_to_frame(self, img, frame_label, size):
         """Adds an image(one frame from the video) to a label in a frame of the UI."""
         if len(img.shape) > 2:
@@ -371,6 +370,7 @@ class App(ctk.CTk):
     
     def check_houghB_state(self, e):
         """Changes the state of hough transform button if pressed."""
+        self.define_lane_detection_model()
         if self.is_slid:
             self.slid_wind_frame1.configure(fg_color=GRAY1)
             self.slid_wind_lbl.configure(text_color="gray")
