@@ -41,6 +41,8 @@ class SlidingWindow:
         """
         self.window_width = window_width
         self.window_height = window_height
+        self.prev_left_curve_coeff = np.zeros(0)
+        self.prev_right_curve_coeff = np.zeros(0)
     
     def get_lanes_starting_points(self, img, returnHist=False):
         """
@@ -64,7 +66,6 @@ class SlidingWindow:
         # Get where is the max values located on the x-axis
         left_lane_x = np.argmax(axis_Histogram[:midpoint])
         right_lane_x = np.argmax(axis_Histogram[midpoint:]) + midpoint
-        
         if returnHist:
             return left_lane_x, right_lane_x, axis_Histogram
         else:
@@ -93,7 +94,7 @@ class SlidingWindow:
         
         # Creating the window on the lanes bases
         num_of_windows = H_img // window_height
-        plt.imshow(img, cmap='gray')   
+
         # Move the window on the lane
         for i in range(num_of_windows):
             y_start = H_img - window_height * (i + 1)
@@ -109,8 +110,8 @@ class SlidingWindow:
             right_lane_win = img[y_start : y_end, x_start_right : x_end_right]
 
             # get the white pixels in the left and right window
-            left_white_pxls = np.argwhere(left_lane_win == 1)
-            right_white_pxls = np.argwhere(right_lane_win == 1)
+            left_white_pxls = np.argwhere(left_lane_win > 0)
+            right_white_pxls = np.argwhere(right_lane_win > 0)
 
             # move from window coordinates to image coordinates
             left_white_pxls[:, 1] += (left_lane_x - window_width//2)
@@ -120,22 +121,19 @@ class SlidingWindow:
 
             left_lane_list = np.vstack((left_lane_list, left_white_pxls))    
             right_lane_list = np.vstack((right_lane_list, right_white_pxls))    
-            print(left_white_pxls)
+            # print(left_white_pxls)
             # update the window base
             if(len(left_white_pxls)):
                 left_lane_x = int(np.mean(left_white_pxls[:, 1]))
             if(len(right_white_pxls)):
                 right_lane_x = int(np.mean(right_white_pxls[:, 1]))
 
-            plt.plot([x_start_left, x_start_left, x_end_left, x_end_left, x_start_left], 
-                 [y_start, y_end - 1, y_end - 1, y_start, y_start], color='red')
-        
-            plt.plot([x_start_right, x_start_right, x_end_right, x_end_right, x_start_right], 
-                    [y_start, y_end - 1, y_end - 1, y_start, y_start], color='red')
-            
         # Curve fitting(2nd degree poynomial) for the points from the window
-        left_curve_coeff = np.polyfit(left_lane_list[:, 0], left_lane_list[:, 1], 2)
-        right_curve_coeff = np.polyfit(right_lane_list[:, 0], right_lane_list[:, 1], 2)
+        left_curve_coeff, right_curve_coeff = self.prev_left_curve_coeff, self.prev_right_curve_coeff
+        if(len(left_lane_list)):        
+           left_curve_coeff = np.polyfit(left_lane_list[:, 0], left_lane_list[:, 1], 2)
+        if(len(right_lane_list)):
+            right_curve_coeff = np.polyfit(right_lane_list[:, 0], right_lane_list[:, 1], 2)
 
         return left_curve_coeff, right_curve_coeff
         
@@ -182,25 +180,20 @@ class SlidingWindow:
         curvature = numerator / denominator
         return curvature
 
-    def get_direction(self, left_curve, right_curve, y_value):
+    def get_direction(self):
         """
         Determines the direction based on lane curvature.
-
-        Args:
-        left_curve (tuple): Coefficients of the fitted polynomial for the left lane.
-        right_curve (tuple): Coefficients of the fitted polynomial for the right lane.
-        y_value (int): Y-coordinate value for curvature analysis.
 
         Returns:
         str: Direction ('left', 'right', or 'straight') based on lane curvature.
         """
         # polynomial fitting = Ax^2 + Bx + C
-        a_left, b_left, _ = left_curve
-        a_right, b_right, _ = right_curve
+        a_left, b_left, _ = self.prev_left_curve_coeff
+        a_right, b_right, _ = self.prev_right_curve_coeff
 
         # Radius of curvature = ((1 + (2Ax + B)**2)**(3/2)) / |2A|
-        L_curvature = self.calculate_curvature(a_left, b_left, y_value)
-        R_curvature = self.calculate_curvature(a_right, b_right, y_value)
+        L_curvature = self.calculate_curvature(a_left, b_left, 200)
+        R_curvature = self.calculate_curvature(a_right, b_right, 200)
         
         # If A = -ve , then the direction of curvature is at the left & vice-versa
         if min(L_curvature, R_curvature) > 1e-5:
@@ -224,25 +217,40 @@ class SlidingWindow:
         H, W = img.shape # binary image
         left_x, right_x = self.get_lanes_starting_points(img)
         left_curve_coeff, right_curve_coeff = self.sliding_window(img, left_x, right_x, H)
+        
         x_left_list, y_left_list = self.generate_polynomial_values(left_curve_coeff, H - 1)
         x_right_list, y_right_list = self.generate_polynomial_values(right_curve_coeff, H - 1)
         
         # create a mask
         mask = np.zeros((H, W))
-        mask[x_left_list, y_left_list] = 1
-        mask[x_right_list, y_right_list] = 1
+        # find indices where 0 < y < width
+        indices_left = np.where(np.logical_and(y_left_list > 0, y_left_list < W))[0]
+        indices_right = np.where(np.logical_and(y_right_list > 0, y_right_list < W))[0]
+        
+        # filter x, y
+        filtered_x_left = x_left_list[indices_left]
+        filtered_y_left = y_left_list[indices_left]
+        filtered_x_right = x_right_list[indices_right]
+        filtered_y_right = y_right_list[indices_right]
+        
+        mask[filtered_x_left, filtered_y_left] = 1
+        mask[filtered_x_right, filtered_y_right] = 1
         
         # Convert the mask to uint8 format
         mask_uint8 = (mask * 255).astype(np.uint8)
 
         # Define a kernel for dilation
-        kernel = np.ones((10, 10), np.uint8)  # Adjust the kernel size as needed
+        kernel = np.ones((30, 30), np.uint8)  # Adjust the kernel size as needed
 
         # Perform dilation using OpenCV
         dilated_mask = cv2.dilate(mask_uint8, kernel, iterations=1)
 
         # Convert the dilated mask to a 3-channel image to match the original image
         dilated_mask = cv2.merge((dilated_mask, dilated_mask*0, dilated_mask*0))
+        
+        # update previous left and right curve coeff
+        self.prev_left_curve_coeff = left_curve_coeff
+        self.prev_right_curve_coeff = right_curve_coeff
 
         return dilated_mask
     

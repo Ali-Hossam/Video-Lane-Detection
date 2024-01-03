@@ -197,7 +197,7 @@ class Hough:
         mask_uint8 = (mask * 255).astype(np.uint8)
 
         # Define a kernel for dilation
-        kernel = np.ones((20, 20), np.uint8)  # Adjust the kernel size as needed
+        kernel = np.ones((30, 30), np.uint8)  # Adjust the kernel size as needed
 
         # Perform dilation using OpenCV
         dilated_mask = cv2.dilate(mask_uint8, kernel, iterations=1)
