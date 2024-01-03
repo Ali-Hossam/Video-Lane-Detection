@@ -7,7 +7,7 @@ from skimage import transform
 sys.path.append('.')
 import numpy as np
 from python_files.lane_detection import LaneDetection
-from python_files.preprocessing_functions import ROI
+from python_files.preprocessing_functions import update_trapezoid
 
 ctk.set_appearance_mode("dark")
 logo = Image.open("UI/logo.png")
@@ -19,10 +19,10 @@ GRAY1 = "#2b2b2b"
 GRAY2 = "#242424"
 button_height = 50
 button_width = 320
-slider_width = 100
+slider_width = 300
 slider_height = 16
-txt_size = 20
-header_size = 22
+txt_size = 19
+header_size = 20
 GWL_EXSTYLE = -20
 WS_EX_APPWINDOW = 0x00040000
 WS_EX_TOOLWINDOW = 0x00000080
@@ -36,6 +36,7 @@ class App(ctk.CTk):
         
         self.geometry("1400x720")
         # self.iconbitmap(icon_path)
+        
         #===========================================================#
         # Title bar        
         #===========================================================#
@@ -157,73 +158,85 @@ class App(ctk.CTk):
         #===========================================================#
         # Sliders     
         #===========================================================#
-        
-        param_label = ctk.CTkLabel(self, text="Parameters", font=("consolas", header_size, "bold"), 
+        p1_label = ctk.CTkLabel(self, text="Perspective transformation", font=("consolas", header_size, "bold"), 
                              text_color="gray", bg_color=GRAY2)
-        param_label.pack(side="top", anchor="w", padx=20, ipady=20)
+        p1_label.pack(side="top", anchor="nw", padx=20, pady=20)
         
-        p1_label = ctk.CTkLabel(self, text="Prespective tranformation", font=("consolas", txt_size, "bold"), 
-                             text_color="white", bg_color=GRAY2)
-        p1_label.pack(side="top", anchor="nw", padx=20)
-        
-        self.prespT_param_frame = ctk.CTkFrame(self, width=button_width-8, height=180, corner_radius=0)
+        self.prespT_param_frame = ctk.CTkFrame(self, width=button_width-8, height=180, corner_radius=5)
         self.prespT_param_frame.pack(side="top", anchor="nw", padx=0)  
         
-        self.sliderx1, self.slidery1 = self.add_two_slidersH(1)
-        self.sliderx2, self.slidery2 = self.add_two_slidersH(2)
-        self.sliderx3, self.slidery3 = self.add_two_slidersH(3)
-        self.sliderx4, self.slidery4 = self.add_two_slidersH(4)
+        self.topWidth_S = self.add_slider(0, "Top Width", 1, 640, 640//8)
+        self.bottomWidth_S = self.add_slider(2, "Bottom Width", 1, 640, 640//5)
+        self.top_spacing_S = self.add_slider(4, "Top line spacing", 1, 400, 640//5)
+        self.bottom_spacing_S = self.add_slider(6, "Bottom line spacing", 1, 400, 0)
+        self.horizontal_S = self.add_slider(8, "Horizontal Position", 0, 640, 640//2)
+        self.vertical_S = self.add_slider(10, "Vertical Position", 0, 640, 400//2)
+        self.rotation_S = self.add_slider(12, "Rotation", -180, 180, 0)
         
-        self.sliderx1.configure(to=639)
-        self.sliderx2.configure(to=639)
-        self.sliderx3.configure(to=639)
-        self.sliderx4.configure(to=639)
-        self.slidery1.configure(to=199)
-        self.slidery2.configure(to=199)
-        self.slidery3.configure(to=199)
-        self.slidery4.configure(to=199)
-        
-        param_data_frame = ctk.CTkFrame(self, height=100, width=button_width+5)
-        param_data_frame.pack(side="left", anchor="sw")
-        txt = "Point1 : Top left    \nPoint2 : Top right   \nPoint3 : bottom right\nPoint4 : bottom left "
-        param_data_label = ctk.CTkLabel(param_data_frame, text=txt, 
-                                        font=("consolas", txt_size, "bold"),
-                                        text_color="gray")
-        param_data_label.pack(anchor="center")
-        param_data_frame.pack_propagate(False)
+        binary_threshold_frame = ctk.CTkFrame(self, width = 400, height=60)
+        binary_threshold_frame.place(x=1060, y=720-100)
+        binary_th_label = ctk.CTkLabel(binary_threshold_frame, text="Binary Threshold", 
+                                       font=("consolas", header_size, "bold"), 
+                             text_color="white", bg_color=GRAY2)
+        binary_th_label.grid(row=0, pady=3, sticky="w", padx=20)
+        self.binary_thresh = ctk.CTkSlider(binary_threshold_frame, from_=0, to=255, progress_color=YELLOW, 
+                                    button_color="black", height=slider_height,
+                                    width=slider_width - 20, button_hover_color="gray",
+                                    command=self.update_parameters)
+                
+        self.binary_thresh.grid(row=1, padx=10, pady=3)        
+        binary_threshold_frame.grid_propagate(False)
         #===========================================================#
         
         #===========================================================#
         # Video play     
         #===========================================================#
-        # frames
-        main_vid_frame = ctk.CTkFrame(self, width=640, height=400, corner_radius=20)
-        main_vid_frame.place(x=360, y=165)
-        self.main_vid_label = ctk.CTkLabel(main_vid_frame, width=640, height=400, text="") # the label that will hold the video
-        self.main_vid_label.pack(padx=20, pady=20)
+        # Define frames
+        main_vid_frame = ctk.CTkFrame(self, width=640, height=400, corner_radius=5)
+        PT_vid_frame = ctk.CTkFrame(self, width=300, height=195, corner_radius=5)
+        lane_vid_frame = ctk.CTkFrame(self, width = 300, height=195, corner_radius=5)
         
-        PT_vid_frame = ctk.CTkFrame(self, width=300, height=210, corner_radius=20)
+        # Define frames position
+        main_vid_frame.place(x=360, y=165)
         PT_vid_frame.place(x=1060, y=165)
+        lane_vid_frame.place(x=1060, y=390)
+        
+        # Add label to each frame
+        self.main_vid_label = ctk.CTkLabel(main_vid_frame, width=640, height=400, text="") # the label that will hold the video
         self.PT_vid_label = ctk.CTkLabel(PT_vid_frame, width=300, height=210, text="") # the label that will hold the video
-        self.PT_vid_label.pack(padx=20, pady=20)
-        lane_vid_frame = ctk.CTkFrame(self, width = 300, height=210, corner_radius=20)
-        lane_vid_frame.place(x=1060, y=395)
         self.lane_vid_label = ctk.CTkLabel(lane_vid_frame, width=300, height=210, text="") # the label that will hold the video
-        self.lane_vid_label.pack(padx=20, pady=20)
+        
+        # Define padding for each label
+        self.main_vid_label.pack(padx=10, pady=10)
+        self.PT_vid_label.pack(padx=10, pady=10)
+        self.lane_vid_label.pack(padx=10, pady=10)
+        
+        # Disable pack propagation
         PT_vid_frame.pack_propagate(False)
         lane_vid_frame.pack_propagate(False)
         
+        # Define resizing data
         self.vid_size = (640, 400)
 
-        cap = cv2.VideoCapture("images\LaneVideo.mp4")
-        self.video = cap
-        
-        # self.video_play()
         #===========================================================#
 
 
     def add_image_to_frame(self, img, frame_label, size):
-        """Adds an image(one frame from the video) to a label in a frame of the UI."""
+        """
+        Adds an image (one frame from the video) to a label UI frame.
+
+        Arguments:
+        img : numpy.ndarray
+            Image data in the form of a NumPy array.
+        frame_label : str
+            Name of the label UI frame to which the image will be added.
+        size : tuple
+            Size of the image.
+
+        Notes:
+        - Converts BGR image to RGB if the image has more than 2 dimensions.
+        - Utilizes CTkImage and configures the specified label frame with the image.
+        """
         if len(img.shape) > 2:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(img)
@@ -231,92 +244,164 @@ class App(ctk.CTk):
         vid_label_func = getattr(self, frame_label)
         vid_label_func.configure(image=img)
         setattr(self, frame_label, vid_label_func)
-        
+
     def upload_video(self, e):
-        # update button appearance
+        """
+        Event handler for uploading a video.
+
+        Arguments:
+        e : Event
+            Event object.
+
+        Notes:
+        - Updates the appearance of the upload button.
+        - Opens a file dialog to select the video file.
+        - Reads the video file and stores the first frame resized to (640, 400) pixels.
+        - Adds the first frame to the main video label frame.
+        - Calls other methods to define lane detection models and update parameters.
+        """
+        # Update button appearance
         self.upload_label.configure(text_color="white")
         self.upload_frame1.configure(fg_color=YELLOW)
         
-        # store file path
+        # Store file path and open video capture
         vid_path = ctk.filedialog.askopenfilename()
         self.video = cv2.VideoCapture(vid_path)
         ret, frame = self.video.read()
         self.first_frame = cv2.resize(frame, (640, 400))
         self.add_image_to_frame(self.first_frame, "main_vid_label", self.vid_size)
         self.define_lane_detection_model()
-
-        # update button appearance
+        self.update_parameters()
+        
+        # Update button appearance
         self.upload_label.configure(text_color="gray")
         self.upload_frame1.configure(fg_color=GRAY1)
+
         
     def define_lane_detection_model(self):
+        """
+        Defines the lane detection model based on selected algorithms.
+
+        Notes:
+        - Checks the flags is_hough and is_slid to select the lane detection algorithm.
+        - Initializes the model based on the selected algorithm (Hough or Sliding Window).
+        """
         if self.is_hough:
-            self.model = LaneDetection()    
-        
+            self.model = LaneDetection("hough")
+        if self.is_slid:
+            self.model = LaneDetection("slidingW")
+
     def start_processing(self, e):
+        """
+        Event handler for starting/stopping video processing.
+
+        Arguments:
+        e : Event
+            Event object.
+
+        Notes:
+        - If is_start is True, stops processing and updates button appearance to 'stop'.
+        - If is_start is False, starts processing, updates button appearance to 'start',
+        and calls the process_next_frame method.
+        """
         if self.is_start == True:
+            # Stop processing
             self.start_label.configure(text_color="gray")
             self.start_frame1.configure(fg_color=GRAY1)
             self.is_start = False
         else:
+            # Start processing
             self.start_label.configure(text_color="white")
             self.start_frame1.configure(fg_color=YELLOW)
-            self.process_next_frame()
+            self.process_next_frame()  # Assuming this method starts processing the next frame
             self.is_start = True
 
-    def update_parameters(self, _=None):
-        x_values = (
-                int(self.sliderx1.get()),
-                int(self.sliderx2.get()),
-                int(self.sliderx3.get()),
-                int(self.sliderx4.get())
-                )
 
-        y_values = (
-                int(self.slidery1.get()),
-                int(self.slidery2.get()),
-                int(self.slidery3.get()),
-                int(self.slidery4.get())
-            )
+    def update_parameters(self, e=None):
+        """
+        Updates the parameters and visual representations based on user input.
+
+        Arguments:
+        e : Event, optional
+            Event object.
+
+        Returns:
+        ndarray
+            Array of updated points for the trapezoid.
+
+        Notes:
+        - Retrieves parameter values from the corresponding UI sliders.
+        - Calculates points_array using the update_trapezoid function with the obtained parameters.
+        - Updates images based on the processed frames and parameters.
+        - Displays the perspective-transformed and binary thresholded images.
+        - Returns the updated points_array for the trapezoid.
+        """
+        top_width = int(self.topWidth_S.get())
+        bottom_width = int(self.bottomWidth_S.get())
+        top_spacing = int(self.top_spacing_S.get())
+        bottom_spacing = int(self.bottom_spacing_S.get())
+        horizontal_pos = int(self.horizontal_S.get())
+        vertical_pos = int(self.vertical_S.get())
+        rotation = int(self.rotation_S.get())
             
-        points_array = [(x, y) for x, y in zip(x_values, y_values)]
-        points_array = np.array(points_array, dtype=np.float32)
-        # if(self.model.cropped_frame):
-        #     img_pts = self.model.cropped_frame
-        # else:
+        points_array = update_trapezoid(bottom_width, top_width, vertical_pos,
+                                bottom_spacing, horizontal_pos, rotation, top_spacing)
         
-        if (self.model.cropped_frame.any()):
-            img_pts = self.model.cropped_frame
+        if self.model.current_frame.any():
+            img = self.model.current_frame
         else:
-            img_pts = ROI(self.first_frame) 
-        img_pts = self.model.create_img_with_points(img_pts, points_array)
-        self.add_image_to_frame(img_pts, "PT_vid_label", (260, 170))
-
+            img = cv2.resize(self.first_frame, (640, 400)) 
+        img_pts = self.model.create_img_with_points(img, points_array)
+        self.add_image_to_frame(img_pts, "PT_vid_label", (280, 175))
+        
+        # Show perspective-transformed image
+        threshold = int(self.binary_thresh.get())
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        pt_img, _ = self.model.perspective_transformation(gray_img, points_array)
+        _, binary_img = cv2.threshold(pt_img, threshold, 255, cv2.THRESH_BINARY)
+        self.add_image_to_frame(binary_img, "lane_vid_label", (280, 175))
         
         return points_array
-    
+
+     
     def process_next_frame(self):
-        if self.is_hough:
-            if not self.is_pause:
-                ret, frame = self.video.read()
-                points_array = self.update_parameters()
-                
-                # show video frames after processing
-                if not ret:
-                    self.video.release()
-                    cv2.destroyAllWindows()
-                    return
-                frame = cv2.resize(frame, (640, 400))
-                img, morph_img, img_pts = self.model.detect_lane_frame(frame, points_array)
-                self.add_image_to_frame(img, "main_vid_label", self.vid_size)        
-                self.add_image_to_frame(img_pts, "PT_vid_label", (260, 170))
-                self.add_image_to_frame(morph_img, "lane_vid_label", (260, 170))
-                self.update()  #
-                self.after(1, self.process_next_frame())
+        """
+        Processes the next frame of the video for lane detection and updates UI.
+
+        Notes:
+        - If not paused, reads the next frame from the video.
+        - Updates parameters using update_parameters.
+        - Detects lanes in the frame and displays processed images.
+        - Continuously calls itself using 'after' method for continuous processing.
+        """
+        if not self.is_pause:
+            ret, frame = self.video.read()
+            points_array = self.update_parameters()
             
-            
-        
+            # Show video frames after processing
+            if not ret:
+                self.video.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Set frame position to beginning
+                return
+            frame = cv2.resize(frame, (640, 400))
+            img, morph_img, img_pts = self.model.detect_lane_frame(frame, points_array, int(self.binary_thresh.get()))
+            self.add_image_to_frame(img, "main_vid_label", self.vid_size)        
+            self.add_image_to_frame(img_pts, "PT_vid_label", (280, 175))
+            self.add_image_to_frame(morph_img, "lane_vid_label", (280, 175))
+            self.update()
+            self.after(1, self.process_next_frame())  # Continuously process next frame
+
     def pause_processing(self, e):
+        """
+        Pauses or resumes video processing based on the current state.
+
+        Arguments:
+        e : Event
+            Event object.
+
+        Notes:
+        - If is_pause is True, resumes processing and updates button appearance.
+        - If is_pause is False, pauses processing and updates button appearance.
+        """
         if self.is_pause == True:
             self.pause_label.configure(text_color="gray")
             self.pause_frame1.configure(fg_color=GRAY1)
@@ -326,38 +411,69 @@ class App(ctk.CTk):
             self.pause_label.configure(text_color="white")
             self.pause_frame1.configure(fg_color=YELLOW)
             self.is_pause = True
-            
-    
+
     def add_label(self, frame, text, variable, font_size=txt_size, is_bind=False, bind_function=None):
-        """Adds a label to a given frame."""
-        label = ctk.CTkLabel(frame, text=text, font=("consolas", font_size, "bold"), 
-                             text_color="gray")
+        """
+        Adds a label to a given frame in the UI.
+
+        Arguments:
+        frame : Frame
+            Frame where the label will be added.
+        text : str
+            Text content of the label.
+        variable : str
+            Name of the label variable.
+        font_size : int, optional
+            Font size of the label text. Default is txt_size.
+        is_bind : bool, optional
+            Boolean indicating if the label has a binding function. Default is False.
+        bind_function : function, optional
+            Function to be executed on label click. Default is None.
+        """
+        label = ctk.CTkLabel(frame, text=text, font=("consolas", font_size, "bold"), text_color="gray")
         label.pack(expand=True)
         if is_bind:
             label.bind("<Button-1>", bind_function)
         setattr(self, variable, label)
-    
-    def add_two_slidersH(self, row):  # add a variable to take
-        slider1_label = ctk.CTkLabel(self.prespT_param_frame, text=f"x{row}", font=("consolas", txt_size, "bold"), 
+
+    def add_slider(self, row, text, start, end, value, col=0):
+        """
+        Adds a slider to the UI with specified parameters.
+
+        Arguments:
+        row : int
+            Row position in the UI grid.
+        text : str
+            Text label for the slider.
+        start : int
+            Start value for the slider.
+        end : int
+            End value for the slider.
+        value : int
+            Initial value for the slider.
+        col : int, optional
+            Column position in the UI grid. Default is 0.
+
+        Returns:
+        ctk.CTkSlider
+            Slider object created in the UI.
+
+        Notes:
+        - Adds a slider with specified text, range, and initial value to the UI grid.
+        - Binds the slider to the update_parameters method for value changes.
+        """
+        slider1_label = ctk.CTkLabel(self.prespT_param_frame, text=text, font=("consolas", txt_size, "bold"), 
                             text_color="white", bg_color=GRAY1)
-        slider1_label.grid(row=row, column=0, padx = 20, pady=10)
+        slider1_label.grid(row=row, column=col, padx=20, pady=1, sticky='w')
         
-        slider1 = ctk.CTkSlider(self.prespT_param_frame, from_=0, to=100, progress_color=YELLOW, 
+        slider = ctk.CTkSlider(self.prespT_param_frame, from_=start, to=end, progress_color=YELLOW, 
                                     button_color="black", height=slider_height,
                                     width=slider_width, button_hover_color="gray",
                                     command=self.update_parameters)
-        slider1.grid(row=row, column=1)
-        
-        slider2_label = ctk.CTkLabel(self.prespT_param_frame, text=f"y{row}", font=("consolas", txt_size, "bold"), 
-                            text_color="white", bg_color=GRAY1)
-        slider2_label.grid(row=row, column=2, padx = 20, pady=10)
-        
-        slider2 = ctk.CTkSlider(self.prespT_param_frame, from_=0, to=100, progress_color=YELLOW, 
-                                    button_color="black", height=slider_height,
-                                    width=slider_width, button_hover_color="gray",
-                                    command=self.update_parameters)
-        slider2.grid(row=row, column=3)
-        return slider1, slider2
+        slider.grid(row=row+1, column=col, padx=10)
+        slider.set(value)
+        return slider
+
         
     def move_app(self, e):
         """moves the app with clicks on the titlebar."""
@@ -370,7 +486,6 @@ class App(ctk.CTk):
     
     def check_houghB_state(self, e):
         """Changes the state of hough transform button if pressed."""
-        self.define_lane_detection_model()
         if self.is_slid:
             self.slid_wind_frame1.configure(fg_color=GRAY1)
             self.slid_wind_lbl.configure(text_color="gray")
@@ -379,6 +494,7 @@ class App(ctk.CTk):
         self.hough_button_frame1.configure(fg_color=YELLOW)
         self.hough_button_lbl.configure(text_color="white")
         self.is_hough = True
+        self.define_lane_detection_model()
             
     def check_slidingB_state(self, e):
         """changes the state of Sliding window button if pressed."""
@@ -390,6 +506,7 @@ class App(ctk.CTk):
         self.slid_wind_frame1.configure(fg_color=YELLOW)
         self.slid_wind_lbl.configure(text_color="white")
         self.is_slid = True
+        self.define_lane_detection_model()
     
 
 def show_taskbar_icon(root):

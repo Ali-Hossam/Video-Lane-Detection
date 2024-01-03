@@ -61,7 +61,43 @@ def gray_to_binary(img):
     _, binary_image = cv2.threshold(gray_image_8bit, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return binary_image
 
-def apply_errosion(img, element_size):
-    element = morphology.rectangle(element_size, element_size+5)
-    opened_img = morphology.binary_erosion(img, element)
-    return opened_img
+def connect_lines(img, element_size1=50, element_size2=5):
+    vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, element_size1))  # Adjust the kernel size as needed
+
+    # Perform dilation to elongate the white rectangle vertically
+    elongated_rectangle = cv2.dilate(img, vertical_kernel, iterations=8)
+
+    # Define the structuring element for the morphology operation (kernel)
+    vertical_kernel2 = cv2.getStructuringElement(cv2.MORPH_RECT, (element_size2, 1))  # Adjust the kernel size as needed
+
+    # Perform erosion on the enlongated image
+    eroded_img = cv2.morphologyEx(elongated_rectangle, cv2.MORPH_ERODE, vertical_kernel2)
+    return eroded_img
+
+def update_trapezoid(bottom_width, top_width, vertical_position, bottom_spacing,
+                     horizontal_position, rotation, top_spacing):
+
+    # Convert degrees to radians for rotation
+    theta_cw = np.radians(rotation)
+    
+    # update points based on sliders values
+    x1 = horizontal_position - top_width / 2
+    x2 = horizontal_position + top_width / 2
+    x4 = horizontal_position - bottom_width / 2
+    x3 = horizontal_position + bottom_width / 2
+    y1 = vertical_position - top_spacing
+    y2 = vertical_position - top_spacing
+    y4 = vertical_position + bottom_spacing
+    y3 = vertical_position + bottom_spacing
+    
+    # Rotation matrix for clockwise and counterclockwise rotation
+    rot = np.array([[np.cos(theta_cw), -np.sin(theta_cw)],
+                       [np.sin(theta_cw), np.cos(theta_cw)]])
+    
+    # Apply rotation transformation to trapezoid vertices
+    p1 = np.dot(rot, np.array([[x1], [y1]]))
+    p2 = np.dot(rot, np.array([[x2], [y2]]))
+    p3 = np.dot(rot, np.array([[x3], [y3]]))
+    p4 = np.dot(rot, np.array([[x4], [y4]]))
+    pts = np.array([p1, p2, p3, p4], dtype=np.float32)
+    return pts
