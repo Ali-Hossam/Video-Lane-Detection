@@ -108,7 +108,7 @@ class App(ctk.CTk):
         self.slid_wind_frame2.bind("<Button-1>", self.check_slidingB_state)
         
         # upload, start, pause buttons
-        bot_button_x = 395
+        bot_button_x = 380
         bot_button_width = button_width // 1.66
         bot_button_space = 25
         bot_button_y = 720 - button_height
