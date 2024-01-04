@@ -41,8 +41,9 @@ Lane detection accuracy may vary due to factors such as camera positioning, road
 
 For a comprehensive understanding of the application functionalities and processes, refer to the provided Jupyter notebooks.
 
-![UI](UI/UI.gif)
-
+<div style="text-align:center">
+    ![UI](UI/UI.gif)
+</div>
 
 ---
 ## Building Executable (.exe)
