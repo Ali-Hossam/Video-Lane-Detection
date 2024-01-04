@@ -19,6 +19,7 @@ The project consists of the following structure:
 - scikit-image (skimage)
 - matplotlib
 - ipywidgets
+- pyinstaller (to build exe)
 
 ## Usage
 
