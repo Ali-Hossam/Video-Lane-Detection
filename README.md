@@ -31,6 +31,7 @@ The UI facilitates video lane detection through the following steps:
 3. **Perspective Transformation Adjustment**: Utilize sliders to modify transformation parameters until clear lane views are achieved.
 4. **Gray to Binary Threshold**: Fine-tune the threshold slider to optimize grayscale-to-binary conversion.
 5. **Initiating Lane Detection**: Click the 'Start' button to commence the lane detection process.
+   
 ![UI](UI/UI.png)
 
 
@@ -43,11 +44,11 @@ For a comprehensive understanding of the application functionalities and process
 
 
 ---
-## Notes
+## Building Executable (.exe)
 
-In some cases, Windows Antivirus deletes the exe file. In order to create an executable with PyInstaller, use the following command:
+In order to create an executable with PyInstaller, use the following command:
 
 ```bash
-pyinstaller --onefile -w --noconsole --icon UI/car.ico --add-data "UI/logo.png;UI" --add-data "python_files;python_files" UI/interface.py
+pyinstaller --onefile -w --noconsole --icon=UI/car.ico --add-data "UI/logo.png;UI" --add-data "python_files;python_files" --name=AutoLane UI/interface.py
 ```
-
+After that, move the executable from `dist` folder to the main folder and remove `build`, `dist` directories and `AutoLane.spec` file.
