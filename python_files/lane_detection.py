@@ -1,7 +1,8 @@
 import sys
 sys.path.append('.')
-from python_files.preprocessing_functions import ROI, gray_to_binary, apply_errosion
+from python_files.preprocessing_functions import gray_to_binary, connect_lines
 from python_files.hough_transform_module import Hough
+from python_files.sliding_window_module import SlidingWindow
 from skimage.morphology import dilation, square
 from skimage.color import rgb2gray
 import numpy as np
@@ -9,28 +10,17 @@ import cv2
 
 
 class LaneDetection:
-    def __init__(self):
-        self.hough_ = Hough(5, 500)
-
-        # lines r, theta
-        self.past_r1 = 0
-        self.past_r2 = 0
-        self.past_theta1 = 0
-        self.past_theta2 = 0
-        
-        # distances lists
-        self.distances1 = []
-        self.distances2 = []
+    def __init__(self, algorithm):
+        if algorithm == "hough":
+            self.algorithm = 0
+            self.model = Hough(5, 500)
+        else:
+            self.algorithm = 1
+            self.model = SlidingWindow(50, 30)
 
         # current frame
-        self.cropped_frame = np.zeros(3)
-                
-    def calc_distance_between_lines(self, r1, theta1, r2, theta2):
-        """calculates distance between two lines given their r and theta in 
-            polar coordinates.
-        """
-        dist = np.abs(r1 - r2 * np.cos(theta1 - theta2))
-        return dist
+        self.current_frame = np.zeros(3)
+
 
     def perspective_transformation(self, img, pts_source):
         """Returns perspective transformation of an image."""
@@ -60,55 +50,62 @@ class LaneDetection:
     def create_img_with_points(self, img, pts_list):
         """draw Prespective transformation points on an image"""
         img_with_points = np.copy(img)
-        for point in pts_list.astype(int):
-            cv2.circle(img_with_points, point, 8, (0, 0, 255), -1)  # Draw red circles (BGR color)
-        return img_with_points  # Return the image with scatter points added
+        # Iterate through points to draw circles
+        pts_list = pts_list.reshape(4, 2).astype(int)
+        
+        for point in pts_list:
+            cv2.circle(img_with_points, point, 8, (200, 0, 0), -1)  # Draw red circles (BGR color)
 
+        # Draw lines between consecutive points
+        for i in range(len(pts_list) - 1):
+            cv2.line(img_with_points, pts_list[i], pts_list[i + 1], (150, 0, 0), 2)  # Draw green lines
+
+        # To close the shape, draw a line between the last and first points
+        cv2.line(img_with_points, pts_list[-1], pts_list[0], (150, 0, 0), 2)
+    
+        # Return the image with scatter points added
+        return img_with_points
+    
     def get_angle(self):
         pass
     
-    def detect_lane_frame(self, img, pts_source):
-        # crop the image
-        cropped_img = ROI(img)
+    def detect_lane_frame(self, img, pts_source, binary_threshold):
+        # resize the image
+        resized_img = cv2.resize(img, (640, 400))
         
         # convert image to gray
-        gray_img = rgb2gray(cropped_img)
+        gray_img = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)
         
         # apply prespective transformation
         transformed_img, PT_matrix = self.perspective_transformation(gray_img, pts_source) 
 
         # convert image to binary
-        binary_img = gray_to_binary(transformed_img)
+        _, binary_img = cv2.threshold(transformed_img, binary_threshold, 255, cv2.THRESH_BINARY)
         
         # morphological operation
-        morph_img = apply_errosion(binary_img, 2)
+        morph_img = connect_lines(binary_img)
         
-        # apply Hough transform
-        r1, theta1, r2, theta2 = self.hough_.get_polar_coorindates(morph_img)
+        if(self. algorithm == 0):
+            # apply Hough transform
+            r1, theta1, r2, theta2 = self.model.get_polar_coorindates(morph_img)
                 
-        # get full mask
-        lane1_mask = self.hough_.get_mask(morph_img, r1, theta1, "green")
-        lane2_mask = self.hough_.get_mask(morph_img, r2, theta2, "red")
-        lanes_mask = np.maximum(lane1_mask, lane2_mask)
-        
+            # get full mask
+            lanes_mask = self.model.get_mask(morph_img, r1, theta1, r2, theta2)
+        else:
+            lanes_mask = self.model.get_mask(morph_img)
+            
         # apply inverse transformation
         H_mask, W_mask, _ = lanes_mask.shape
         inv_lanes_mask = self.inv_perspective_transform(lanes_mask, PT_matrix, W_mask, H_mask)
         
-        # apply dilation on the mask
-        inv_lanes_mask[:, :, 1] = dilation(inv_lanes_mask[:, :, 1], square(5)) # dilation   
-
         # add mask to the original frame
-        cropped_img[:, :, 1] = np.maximum(cropped_img[:, :, 1], inv_lanes_mask[:, :, 1])
-        
-        H = img.shape[0]
-        img[H//2:H, :] = cropped_img
+        resized_img = cv2.addWeighted(resized_img, 0.8, inv_lanes_mask, 1, 0)
 
         # create image with PT points to show it
-        img_with_PT_points = self.create_img_with_points(cropped_img, pts_source)
+        img_with_PT_points = self.create_img_with_points(resized_img, pts_source)
         
         # update current frame
-        self.cropped_frame = cropped_img
-        return img, morph_img, img_with_PT_points
+        self.current_frame = resized_img
+        return resized_img, binary_img, img_with_PT_points
     
     

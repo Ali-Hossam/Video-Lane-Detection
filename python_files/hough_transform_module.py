@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from skimage.color import gray2rgb
 from skimage.morphology import dilation, square
-
+import cv2
 class Hough:
     def __init__(self, thetas_step, kernel_size):
         """
@@ -150,7 +150,7 @@ class Hough:
         y = (r - x * cos_theta) / (sin_theta + 1e-9)
         return y.astype(int)
 
-    def draw_line(self, img: np.ndarray, r: int, theta: int, color: str) -> np.ndarray:
+    def draw_line(self, img: np.ndarray, r: int, theta: int, mask: np.ndarray = np.zeros(0)) -> np.ndarray:
         """
         Draws a line on an image given polar coordinates.
 
@@ -161,12 +161,10 @@ class Hough:
 
         Returns:
         - np.ndarray: Image with drawn line.
-        """
-        if(len(img.shape) == 2):
-            img = gray2rgb(img)
-            
-        height, width, c = img.shape
-        mask = np.zeros(img.shape)
+        """ 
+        height, width = img.shape
+        if(not mask.any()):
+            mask = np.zeros(img.shape)
         x = np.array(range(height))
         y = self.polar_to_cartesian_y(x, r, theta)
         
@@ -177,15 +175,10 @@ class Hough:
         filtered_x = x[indices]
         filtered_y = y[indices]
         
-        if color == "green":
-            mask[filtered_x, filtered_y] = [0, 254, 0]  # Set pixel color (green) on the line
-        elif color == "red":
-            mask[filtered_x, filtered_y] = [0, 220, 0]  # Set pixel color (green) on the line
-        mask[:, :, 1] = dilation(mask[:, :, 1], square(5))
-        # return np.maximum(img, mask)
+        mask[filtered_x, filtered_y] = 1
         return mask
         
-    def get_mask(self, img, r, theta, color):
+    def get_mask(self, img, r1, theta1, r2, theta2):
         """
         Applies the Hough transform process on the input image to detect road lines.
         It generates lines using Hough transform.
@@ -197,13 +190,18 @@ class Hough:
             Polar coordinates of the lanes (r1, theta1, r2, theta2)
         """
         line_image = np.zeros((img.shape[0], img.shape[1], 3))
-        line_image = self.draw_line(gray2rgb(img), r, theta, color)
-        # line_image = np.maximum(line_image, self.draw_line(line_image, r2, theta2))
-        # line_image = line_image / np.max(line_image) 
+        mask = self.draw_line(img, r1, theta1)
+        mask = self.draw_line(img, r2, theta2, mask) 
         
-        # # Visualization
-        # plt.figure(figsize=(12, 5))
-        # plt.imshow(line_image) # clipping may occur
-        # plt.tight_layout()
-        # plt.show()
-        return line_image
+        # Convert the mask to uint8 format
+        mask_uint8 = (mask * 255).astype(np.uint8)
+
+        # Define a kernel for dilation
+        kernel = np.ones((30, 30), np.uint8)  # Adjust the kernel size as needed
+
+        # Perform dilation using OpenCV
+        dilated_mask = cv2.dilate(mask_uint8, kernel, iterations=1)
+
+        # Convert the dilated mask to a 3-channel image to match the original image
+        dilated_mask = cv2.merge((dilated_mask, dilated_mask*0, dilated_mask*0))
+        return dilated_mask
