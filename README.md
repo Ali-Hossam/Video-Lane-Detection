@@ -44,7 +44,7 @@ For a comprehensive understanding of the application functionalities and process
 
 
 <p align="center">
-    <img width="400" src="UI/UI.gif">
+    <img width="640" src="UI/UI.gif">
 </p>
 
 
