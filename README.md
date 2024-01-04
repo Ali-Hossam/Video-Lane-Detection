@@ -40,6 +40,7 @@ The UI facilitates video lane detection through the following steps:
 Lane detection accuracy may vary due to factors such as camera positioning, road conditions, and weather. Additionally, note that the Hough Transform algorithm might be slower compared to Sliding Window, also it is worth mentioning that the accuracy of the results depends heavly on choosing appropriate parameters for perspective transformation.
 
 For a comprehensive understanding of the application functionalities and processes, refer to the provided Jupyter notebooks.
+
 ![UI](UI/UI.gif)
 
 
