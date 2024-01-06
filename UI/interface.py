@@ -12,7 +12,7 @@ from python_files.preprocessing_functions import update_trapezoid
 ctk.set_appearance_mode("dark")
 logo = Image.open("UI/logo.png")
 logo = logo.resize((310, 80))
-# icon_path = "UI\icon.ico"
+icon_path = "UI\car.ico"
 
 YELLOW = "#FFFF33" 
 GRAY1 = "#2b2b2b"
@@ -35,8 +35,8 @@ class App(ctk.CTk):
         # dimensions of the window
         
         self.geometry("1400x720")
-        # self.iconbitmap(icon_path)
-        
+        self.iconbitmap(icon_path)
+        self.title("AutoLane")
         #===========================================================#
         # Title bar        
         #===========================================================#
@@ -510,6 +510,7 @@ class App(ctk.CTk):
     
 
 def show_taskbar_icon(root):
+    root.iconbitmap(icon_path)
     hwnd = windll.user32.GetParent(root.winfo_id())
     style = windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
     style = style & ~WS_EX_TOOLWINDOW
